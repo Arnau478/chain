@@ -13,6 +13,7 @@ const initrd = @import("../../initrd.zig");
 const crofs = @import("../../fs/crofs.zig");
 const framebuffer = @import("../../framebuffer.zig");
 const tss = @import("tss.zig");
+const syscall = @import("syscall.zig");
 
 const log = std.log.scoped(.core);
 
@@ -50,7 +51,8 @@ fn init() !void {
     int.init();
     paging.init();
     pmm.init();
-    tss.init();
+    try tss.init(allocator);
+    syscall.init();
     try acpi.init();
     try vfs.init(allocator);
     try devfs.init(allocator);
@@ -71,6 +73,16 @@ fn init() !void {
     log.debug("Initalization used {} pages", .{pmm.countUsed()});
 
     log.info("Hello from chain", .{});
+
+    asm volatile ("sysretq"
+        :
+        : [fun] "{ecx}" (&user_fun),
+          [flags] "{r11}" (0x202),
+    );
+}
+
+fn user_fun() callconv(.Naked) void {
+    while (true) {}
 }
 
 fn deinit() void {

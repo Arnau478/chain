@@ -111,3 +111,38 @@ pub const Cr3 = struct {
         );
     }
 };
+
+pub const Msr = struct {
+    pub const Register = enum(u32) {
+        EFER = 0xC000_0080,
+        STAR = 0xC000_0081,
+        LSTAR = 0xC000_0082,
+        CSTAR = 0xC000_0083,
+        SF_MASK = 0xC000_0084,
+    };
+
+    pub inline fn write(register: Register, value: usize) void {
+        const value_low: u32 = @truncate(value);
+        const value_high: u32 = @truncate(value >> 32);
+
+        asm volatile ("wrmsr"
+            :
+            : [register] "{ecx}" (@intFromEnum(register)),
+              [value_low] "{eax}" (value_low),
+              [value_high] "{edx}" (value_high),
+        );
+    }
+
+    pub inline fn read(register: Register) usize {
+        var value_low: u32 = undefined;
+        var value_high: u32 = undefined;
+
+        asm volatile ("rdmsr"
+            : [value_low] "={eax}" (value_low),
+              [value_high] "={edx}" (value_high),
+            : [register] "{ecx}" (@intFromEnum(register)),
+        );
+
+        return (@as(usize, value_high) << 32) | value_low;
+    }
+};
